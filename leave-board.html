@@ -1,0 +1,845 @@
+<title>조별 휴가 신청판</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: 고정 상단 바(이름·탭) 아래 최대 1120px 단일 열. 달력은 7열 격자, 관리 화면은 섹션을 위아래로 쌓는다. */
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --sunk:#f6f8fb; --line:#d6dce6; --ink:#162030; --muted:#5a6577;
+  --accent:#1d4f91; --accent-ink:#ffffff; --accent-soft:#e2ebf7;
+  --ok:#1b7446; --ok-soft:#dff1e6; --full:#b0352d; --full-soft:#f8e1de; --wait:#8f5d00; --wait-soft:#faedd0;
+  --day:#a8620a; --day-soft:#fbecd3; --night:#34428a; --night-soft:#e2e5f6; --off:#6f7888; --off-soft:#eceef2;
+  --font:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151d; --surface:#18202b; --sunk:#141b25; --line:#2c3746; --ink:#e6ebf2; --muted:#9aa5b5;
+  --accent:#7fa8e6; --accent-ink:#0d1520; --accent-soft:#1f2f47;
+  --ok:#6fcf98; --ok-soft:#173326; --full:#f08a80; --full-soft:#3d1f1d; --wait:#e6b450; --wait-soft:#382c12;
+  --day:#e8a94e; --day-soft:#3a2a12; --night:#9eaaf0; --night-soft:#232a4a; --off:#9aa3b2; --off-soft:#222a36;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151d; --surface:#18202b; --sunk:#141b25; --line:#2c3746; --ink:#e6ebf2; --muted:#9aa5b5;
+  --accent:#7fa8e6; --accent-ink:#0d1520; --accent-soft:#1f2f47;
+  --ok:#6fcf98; --ok-soft:#173326; --full:#f08a80; --full-soft:#3d1f1d; --wait:#e6b450; --wait-soft:#382c12;
+  --day:#e8a94e; --day-soft:#3a2a12; --night:#9eaaf0; --night-soft:#232a4a; --off:#9aa3b2; --off-soft:#222a36;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.3}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1120px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand h1{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.brand span{font-size:12px;color:var(--muted)}
+.tabs{display:flex;gap:4px}
+.tab{border:0;background:none;padding:7px 12px;border-radius:6px;cursor:pointer;color:var(--muted);font-weight:600;display:flex;gap:6px;align-items:center}
+.tab:hover{background:var(--sunk);color:var(--ink)}
+.tab[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+.badge{min-width:20px;padding:0 6px;border-radius:10px;background:var(--full);color:var(--surface);font-size:11px;line-height:18px;text-align:center}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.who b{color:var(--ink);font-weight:600}
+
+main{max-width:1120px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel h2{font-size:17px}
+.panel h3{font-size:15px}
+.sub{color:var(--muted);font-size:13px;margin:0}
+.notice{padding:10px 14px;border-radius:var(--r);background:var(--wait-soft);color:var(--wait);font-size:14px}
+.notice.err{background:var(--full-soft);color:var(--full)}
+.notice.info{background:var(--accent-soft);color:var(--accent)}
+
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 14px;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap}
+.btn:hover{background:var(--sunk)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ok{color:var(--ok);border-color:var(--ok)}
+.btn.danger{color:var(--full);border-color:color-mix(in srgb,var(--full) 50%,var(--line))}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn[data-armed="1"]{background:var(--full);border-color:var(--full);color:var(--surface)}
+.link{border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label,.lbl{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.field input,.field select,.field textarea,.inline{border:1px solid var(--line);background:var(--sunk);border-radius:6px;padding:8px 10px;min-width:0;width:100%}
+.field textarea{resize:vertical;min-height:60px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.row>.field{flex:1 1 140px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}
+
+/* 입장 */
+.entry-head{display:flex;flex-direction:column;gap:6px}
+.entry-head h2{font-size:22px}
+
+/* 달력 */
+.cal-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.month{display:flex;align-items:center;gap:8px}
+.month h2{font-size:20px;min-width:8.5em;text-align:center}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;border-right:1px solid var(--line);background:none;padding:6px 12px;cursor:pointer;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button .me-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-left:4px;vertical-align:middle}
+.cal-wrap{overflow-x:auto}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--line);gap:1px}
+.cal.all{min-width:700px}
+.dow{background:var(--sunk);text-align:center;font-size:12px;font-weight:600;color:var(--muted);padding:6px 0}
+.dow.sun,.cell .d.sun{color:var(--full)}
+.dow.sat,.cell .d.sat{color:var(--accent)}
+.cell{background:var(--surface);border:0;text-align:left;padding:6px 7px 8px;min-height:92px;display:flex;flex-direction:column;gap:4px;cursor:pointer;min-width:0;position:relative}
+.cell:hover{background:var(--sunk)}
+.cell.blank{background:var(--sunk);cursor:default}
+.cell.mine{box-shadow:inset 0 0 0 2px var(--accent)}
+.cell .d{font-family:var(--mono);font-weight:600;font-size:13px}
+.duty{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;width:fit-content}
+.duty.D{background:var(--day-soft);color:var(--day)}
+.duty.N{background:var(--night-soft);color:var(--night)}
+.duty.O{background:var(--off-soft);color:var(--off)}
+.seat{font-size:12px;font-weight:600;padding:1px 6px;border-radius:4px;width:fit-content}
+.seat.ok{color:var(--ok);background:var(--ok-soft)}
+.seat.full{color:var(--full);background:var(--full-soft)}
+.seat .w{color:var(--wait)}
+.holder{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.short{display:none}
+.trow{display:grid;grid-template-columns:auto auto 1fr;gap:5px;align-items:center;font-size:11px;line-height:1.35}
+.trow b{font-family:var(--mono);color:var(--muted);font-weight:600}
+.trow .duty{font-size:10px;padding:0 4px}
+.trow .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.s.ok{color:var(--ok)} .s.full{color:var(--full)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--muted);align-items:center}
+.legend span{display:flex;gap:6px;align-items:center}
+@media (max-width:560px){
+  .cal:not(.all) .long{display:none}
+  .cal:not(.all) .short{display:inline-block}
+  .cal:not(.all) .holder{display:none}
+  .cell{min-height:70px;padding:5px 4px}
+  .month h2{font-size:17px;min-width:7em}
+}
+
+/* 목록·표 */
+.list{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item .t{font-weight:600}
+.item .m{font-size:13px;color:var(--muted)}
+.item .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;margin-left:6px;vertical-align:1px}
+.chip.pending{background:var(--accent-soft);color:var(--accent)}
+.chip.approved{background:var(--ok-soft);color:var(--ok)}
+.chip.waiting{background:var(--wait-soft);color:var(--wait)}
+.chip.rejected,.chip.cancelled{background:var(--off-soft);color:var(--off)}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.stat{border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:var(--sunk)}
+.stat .y{font-size:13px;font-weight:600;color:var(--muted)}
+.stat .big{font-family:var(--mono);font-size:30px;font-weight:600;line-height:1}
+.stat .big small{font-size:14px;color:var(--muted);font-family:var(--font);font-weight:500;margin-left:4px}
+.stat .parts{font-size:13px;color:var(--muted)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap}
+th{background:var(--sunk);font-size:12px;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+td input.inline,td select.inline{width:auto;padding:4px 6px}
+td input.n{width:4.5em;font-family:var(--mono)}
+td.wrap{white-space:normal;min-width:10em}
+
+/* 신청 창 */
+.modal{position:fixed;inset:0;z-index:20;background:color-mix(in srgb,#000 45%,transparent);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding-block:max(24px,env(safe-area-inset-top,0px)) 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet{background:var(--surface);border-radius:12px;border:1px solid var(--line);width:min(560px,100%);padding:20px;display:flex;flex-direction:column;gap:14px}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.types{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.types button{border:1px solid var(--line);background:var(--sunk);border-radius:6px;padding:8px 4px;cursor:pointer;font-weight:600;font-size:14px}
+.types button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.preview{border:1px solid var(--line);border-radius:var(--r);background:var(--sunk);padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.days{display:flex;flex-wrap:wrap;gap:6px}
+.dayp{display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);border-radius:6px;padding:4px 7px;background:var(--surface);font-size:12px}
+.dayp .num{font-weight:600}
+.dayp.full{border-color:var(--full)}
+.msg{margin:0;font-size:14px}
+.msg.err{color:var(--full);font-weight:600}
+.msg.warn{color:var(--wait);font-weight:600}
+.msg.ok{color:var(--ok);font-weight:600}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.toast{animation:up .18s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}}
+</style>
+
+<header class="top"><div class="top-in">
+  <div class="brand"><h1>조별 휴가 신청판</h1><span class="num">2026.11 – 2027.12</span></div>
+  <nav class="tabs" id="tabs"></nav>
+  <div class="who" id="who"></div>
+</div></header>
+<main id="view"><div class="panel"><p class="sub">공유 저장소에 연결하는 중입니다…</p></div></main>
+<div id="modal" class="modal" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+// ───────── 기본 상수와 날짜 계산 ─────────
+const MIN = '2026-11-01', MAX = '2027-12-31';
+const SEAT = new Set(['연가', '병가', '청원휴가']);
+const TYPES = ['연가', '병가', '청원휴가', '시간외출'];
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const RANKS = ['이병','일병','상병','병장','하사','중사','상사','원사','준위','소위','중위','대위','소령','중령','대령','군무원'];
+const DUTY = { D: ['주간', '주'], N: ['야간', '야'], O: ['휴무', '휴'] };
+const TAB_ID = Math.random().toString(36).slice(2);
+
+const toN = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) / 864e5; };
+const toS = n => new Date(n * 864e5).toISOString().slice(0, 10);
+const daysIn = (a, b) => { const r = []; for (let n = toN(a); n <= toN(b); n++) r.push(toS(n)); return r; };
+const dowOf = s => new Date(toN(s) * 864e5).getUTCDay();
+const md = s => `${+s.slice(5, 7)}.${+s.slice(8, 10)}.(${DOW[dowOf(s)]})`;
+
+// 기준일부터 지난 일수 d에 대해 주간조 = (기준 주간조 - 1 + d) mod 5 + 1, 야간조 = 전날 주간조
+function dayTeam(s) {
+  const d = toN(s) - toN(S.settings.baseDate);
+  return ((((+S.settings.baseDayTeam - 1 + d) % 5) + 5) % 5) + 1;
+}
+const nightTeam = s => dayTeam(toS(toN(s) - 1));
+const duty = (team, s) => dayTeam(s) === team ? 'D' : nightTeam(s) === team ? 'N' : 'O';
+
+// ───────── 상태 ─────────
+const S = {
+  db: null, dl: null, isOwner: false, offline: false,
+  settings: { baseDate: '2026-11-01', baseDayTeam: 2, adminHash: null },
+  members: [], reqs: [], idx: new Map(), ready: { m: false, r: false },
+  me: lsGet('leave.me'), admin: ssGet('leave.admin') === '1',
+  tab: 'cal', month: '2026-11', teamView: lsGet('leave.teamView') || 'mine',
+  reportMonth: '2026-11', deferred: false, R: null,
+};
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} }
+function ssGet(k) { try { return sessionStorage.getItem(k); } catch { return null; } }
+function ssSet(k, v) { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} }
+
+const today = new Date().toISOString().slice(0, 10);
+if (today >= MIN && today <= MAX) S.month = S.reportMonth = today.slice(0, 7);
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const me = () => S.members.find(m => m.id === S.me) || null;
+const memberLabel = m => `${m.rank} ${m.name}`;
+
+async function hash(s) {
+  try {
+    const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+  } catch { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return 'x' + h; }
+}
+
+function toast(t) {
+  const el = $('toast'); el.textContent = t; el.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 3200);
+}
+function writeErr(e) {
+  console.error(e);
+  if (e && e.code === 'invalid_argument') return '저장할 권한이 없습니다. 승인자에게 이 페이지의 편집(참여) 권한을 요청하세요.';
+  if (e && e.code === 'quota_exceeded') return '저장 공간이 가득 찼습니다. 승인자에게 알려 주세요.';
+  return '저장하지 못했습니다. 잠시 뒤 다시 시도하세요.';
+}
+
+// ───────── 자리 계산: 조·날짜별로 유효한 신청을 신청 시각 순으로 줄 세운다 ─────────
+const active = r => r.status === 'pending' || r.status === 'approved';
+function buildIndex(reqs) {
+  const idx = new Map();
+  for (const r of reqs) {
+    if (!SEAT.has(r.type) || !active(r)) continue;
+    for (const d of daysIn(r.start, r.end)) {
+      const k = r.team + '|' + d;
+      if (!idx.has(k)) idx.set(k, []);
+      idx.get(k).push(r);
+    }
+  }
+  for (const q of idx.values()) q.sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1));
+  return idx;
+}
+const queue = (team, d, idx = S.idx) => idx.get(team + '|' + d) || [];
+
+// 화면에 보이는 상태: 승인 대기 / 승인 / 반려 / 취소 / 대기 n번
+function effective(r, idx = S.idx) {
+  if (!active(r) || !SEAT.has(r.type)) return { kind: r.status, pos: 0 };
+  let pos = 0;
+  for (const d of daysIn(r.start, r.end)) pos = Math.max(pos, queue(r.team, d, idx).indexOf(r));
+  return pos > 0 ? { kind: 'waiting', pos } : { kind: r.status, pos: 0 };
+}
+function statusChip(r) {
+  const e = effective(r);
+  const label = { pending: SEAT.has(r.type) ? '확정 · 승인 대기' : '승인 대기', approved: '승인', rejected: '반려', cancelled: '취소', waiting: `대기 ${e.pos}번` }[e.kind];
+  return `<span class="chip ${e.kind}">${label}</span>`;
+}
+
+// 연가 차감: 기간 안에서 그 조의 주간·야간 근무일만, 연도별로 센다
+function deductOf(team, start, end) {
+  const out = {};
+  for (const d of daysIn(start, end)) if (duty(team, d) !== 'O') out[d.slice(0, 4)] = (out[d.slice(0, 4)] || 0) + 1;
+  return out;
+}
+function balance(m, year, reqs = S.reqs) {
+  const total = +((m.annual || {})[year] || 0);
+  let approved = 0, pending = 0;
+  for (const r of reqs) {
+    if (r.memberId !== m.id || r.type !== '연가' || !active(r)) continue;
+    const n = (r.deduct || {})[year] || 0;
+    r.status === 'approved' ? approved += n : pending += n;
+  }
+  return { total, approved, pending, left: total - approved - pending };
+}
+
+function periodText(r) {
+  if (r.type === '시간외출') return `${md(r.start)} ${r.startTime}~${r.endTime}`;
+  const n = toN(r.end) - toN(r.start) + 1;
+  return r.start === r.end ? md(r.start) : `${md(r.start)} ~ ${md(r.end)} (${n}일)`;
+}
+const deductTotal = r => Object.values(r.deduct || {}).reduce((a, b) => a + b, 0);
+
+// ───────── 렌더링 ─────────
+function render(force) {
+  const a = document.activeElement;
+  if (!force && a && a.closest && a.closest('#view') && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) { S.deferred = true; return; }
+  S.deferred = false;
+  const m = me();
+  if (S.me && S.ready.m && !m) { S.me = null; lsSet('leave.me', null); }
+  renderTop();
+  const v = $('view');
+  if (S.tab === 'admin') v.innerHTML = renderAdmin();
+  else if (!S.me && !S.admin) v.innerHTML = renderEntry();
+  else if (S.tab === 'mine' && S.me) v.innerHTML = renderMine();
+  else { S.tab = 'cal'; v.innerHTML = renderCal(); }
+  if (!$('modal').hidden && S.R) renderPreview();
+}
+document.addEventListener('focusout', () => setTimeout(() => { if (S.deferred) render(); }, 0));
+
+function renderTop() {
+  const m = me();
+  const pendJoin = S.members.filter(x => x.status !== 'approved').length;
+  const pendReq = S.reqs.filter(r => r.status === 'pending' && effective(r).kind === 'pending').length;
+  const adminBadge = S.admin && pendJoin + pendReq ? `<span class="badge num">${pendJoin + pendReq}</span>` : '';
+  const tabs = [];
+  if (S.me || S.admin) tabs.push(['cal', '달력']);
+  if (S.me) tabs.push(['mine', '내 휴가']);
+  tabs.push(['admin', '관리' + adminBadge]);
+  $('tabs').innerHTML = tabs.map(([k, t]) => `<button class="tab" data-act="tab" data-tab="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${t}</button>`).join('');
+  $('who').innerHTML = m
+    ? `<span><b>${esc(memberLabel(m))}</b> · ${m.team}조</span><button class="btn small" data-act="logout">나가기</button>`
+    : S.admin ? `<span><b>승인자</b></span><button class="btn small" data-act="logout">나가기</button>` : '';
+}
+
+function offlineNote() {
+  return S.offline ? `<div class="notice err">공유 저장소에 연결하지 못했습니다. claude.ai에 로그인한 상태로 링크를 다시 열어 주세요. 근무표는 볼 수 있지만 신청과 승인은 저장되지 않습니다.</div>` : '';
+}
+
+// 0. 입장
+function renderEntry() {
+  if (!S.ready.m) return `<div class="panel"><p class="sub">공유 저장소에 연결하는 중입니다…</p></div>`;
+  const list = [...S.members].sort((a, b) => a.team - b.team || a.name.localeCompare(b.name, 'ko'));
+  const opts = [1, 2, 3, 4, 5].map(t => {
+    const ms = list.filter(x => +x.team === t);
+    return ms.length ? `<optgroup label="${t}조">${ms.map(x => `<option value="${x.id}">${esc(memberLabel(x))}${x.status !== 'approved' ? ' (승인 대기)' : ''}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  return `${offlineNote()}
+  <div class="entry-head"><h2>우리 조 휴가 자리, 신청 전에 확인하세요</h2>
+  <p class="sub">처음이면 가입하고, 다음부터는 이름과 PIN 4자리로 들어옵니다. PIN은 실수 방지용입니다.</p></div>
+  <div class="grid2">
+    <form class="panel" data-form="login">
+      <h2>들어가기</h2>
+      ${list.length ? `
+      <div class="field"><label for="lg-member">이름</label><select id="lg-member">${opts}</select></div>
+      <div class="field"><label for="lg-pin">PIN 4자리</label><input id="lg-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" pattern="[0-9]{4}"></div>
+      <p class="sub">PIN이 초기화된 경우 지금 입력한 4자리가 새 PIN이 됩니다.</p>
+      <div><button class="btn primary">들어가기</button></div>` : `<p class="empty">아직 가입한 사람이 없습니다. 오른쪽에서 먼저 가입하세요.</p>`}
+    </form>
+    <form class="panel" data-form="join">
+      <h2>처음이세요? 가입하기</h2>
+      <div class="row">
+        <div class="field"><label for="jn-name">이름</label><input id="jn-name" maxlength="20" autocomplete="off"></div>
+        <div class="field"><label for="jn-rank">계급</label><select id="jn-rank">${RANKS.map(r => `<option${r === '하사' ? ' selected' : ''}>${r}</option>`).join('')}</select></div>
+        <div class="field"><label for="jn-team">조</label><select id="jn-team">${[1, 2, 3, 4, 5].map(t => `<option value="${t}">${t}조</option>`).join('')}</select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="jn-pin">PIN 4자리</label><input id="jn-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+        <div class="field"><label for="jn-pin2">PIN 확인</label><input id="jn-pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+      </div>
+      <p class="sub">가입하면 승인자가 승인한 뒤부터 신청할 수 있습니다.</p>
+      <div><button class="btn primary">가입 신청</button></div>
+    </form>
+  </div>
+  <p class="sub">승인자이신가요? <button class="link" data-act="tab" data-tab="admin">관리 화면으로 가기</button></p>`;
+}
+
+// 1. 월간 달력
+function teamShown() {
+  if (S.teamView === 'all') return 'all';
+  if (S.teamView === 'mine') return me() ? +me().team : 1;
+  return +S.teamView;
+}
+function renderCal() {
+  const m = me();
+  const [y, mo] = S.month.split('-').map(Number);
+  const dim = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  const lead = new Date(Date.UTC(y, mo - 1, 1)).getUTCDay();
+  const tv = teamShown();
+  const myTeam = m ? +m.team : null;
+  const mine = new Set();
+  if (m) for (const r of S.reqs) if (r.memberId === m.id && active(r)) for (const d of daysIn(r.start, r.end)) mine.add(d);
+
+  let cells = DOW.map((d, i) => `<div class="dow ${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${d}</div>`).join('');
+  for (let i = 0; i < lead; i++) cells += `<div class="cell blank"></div>`;
+  for (let day = 1; day <= dim; day++) {
+    const s = `${S.month}-${String(day).padStart(2, '0')}`;
+    const w = dowOf(s), dc = w === 0 ? 'sun' : w === 6 ? 'sat' : '';
+    let body = '';
+    if (tv === 'all') {
+      body = [1, 2, 3, 4, 5].map(t => {
+        const q = queue(t, s), du = duty(t, s);
+        const st = q.length ? `<span class="s full">마감${q.length > 1 ? ` · 대기 ${q.length - 1}` : ''}</span>` : `<span class="s ok">가능</span>`;
+        return `<div class="trow"><b>${t}</b><span class="duty ${du}">${DUTY[du][1]}</span>${st}</div>`;
+      }).join('');
+    } else {
+      const q = queue(tv, s), du = duty(tv, s);
+      const seat = q.length
+        ? `<span class="seat full"><span class="long">마감${q.length > 1 ? ` · <span class="w">대기 ${q.length - 1}명</span>` : ''}</span><span class="short">마감${q.length > 1 ? '+' + (q.length - 1) : ''}</span></span>`
+        : `<span class="seat ok"><span class="long">가능</span><span class="short">가능</span></span>`;
+      body = `<span class="duty ${du}"><span class="long">${DUTY[du][0]}</span><span class="short">${DUTY[du][1]}</span></span>${seat}`
+        + (q.length ? `<span class="holder">${esc(q[0].name)} ${esc(q[0].type)}</span>` : '');
+    }
+    cells += `<button class="cell ${mine.has(s) && (tv === 'all' || tv === myTeam) ? 'mine' : ''}" data-act="day" data-date="${s}" aria-label="${s}"><span class="d ${dc}">${day}</span>${body}</button>`;
+  }
+  const trail = (7 - ((lead + dim) % 7)) % 7;
+  for (let i = 0; i < trail; i++) cells += `<div class="cell blank"></div>`;
+
+  const segs = [1, 2, 3, 4, 5].map(t => `<button data-act="team" data-team="${t}" aria-pressed="${tv === t}">${t}조${myTeam === t ? '<span class="me-dot" title="내 조"></span>' : ''}</button>`).join('')
+    + `<button data-act="team" data-team="all" aria-pressed="${tv === 'all'}">전체 조</button>`;
+  const status = m && m.status !== 'approved' ? `<div class="notice">가입 승인을 기다리는 중입니다. 승인되면 날짜를 눌러 신청할 수 있습니다.</div>` : '';
+  const hint = m && m.status === 'approved' ? '날짜를 누르면 신청 창이 열립니다.' : S.admin && !m ? '승인자 화면입니다. 신청은 근무자로 들어가서 합니다.' : '';
+  return `${offlineNote()}${status}
+  <section class="panel">
+    <div class="cal-bar">
+      <div class="month">
+        <button class="btn small" data-act="month" data-d="-1" ${S.month <= MIN.slice(0, 7) ? 'disabled' : ''} aria-label="이전 달">‹</button>
+        <h2><span class="num">${y}</span>년 <span class="num">${mo}</span>월</h2>
+        <button class="btn small" data-act="month" data-d="1" ${S.month >= MAX.slice(0, 7) ? 'disabled' : ''} aria-label="다음 달">›</button>
+      </div>
+      <div class="seg" role="group" aria-label="조 선택">${segs}</div>
+    </div>
+    <div class="cal-wrap"><div class="cal ${tv === 'all' ? 'all' : ''}">${cells}</div></div>
+    <div class="legend">
+      <span><i class="duty D">주간</i><i class="duty N">야간</i><i class="duty O">휴무</i></span>
+      <span><i class="seat ok">가능</i> 자리 비어 있음</span>
+      <span><i class="seat full">마감</i> 조별 하루 1명 확정됨</span>
+      ${m ? '<span>파란 테두리: 내 신청</span>' : ''}
+      ${hint ? `<span>${hint}</span>` : ''}
+    </div>
+  </section>`;
+}
+
+// 2. 내 휴가
+function renderMine() {
+  const m = me();
+  const years = ['2026', '2027'].map(y => {
+    const b = balance(m, y);
+    return `<div class="stat"><span class="y">${y}년 연가</span><span class="big">${b.left}<small>일 남음</small></span>
+      <span class="parts num">총 ${b.total} · 승인 ${b.approved} · 신청 중 ${b.pending}</span></div>`;
+  }).join('');
+  const rs = S.reqs.filter(r => r.memberId === m.id).sort((a, b) => b.start.localeCompare(a.start) || b.createdAt - a.createdAt);
+  const items = rs.map(r => {
+    const dt = r.type === '연가' && deductTotal(r) ? ` · 근무일 ${deductTotal(r)}일 차감` : '';
+    const can = active(r) && r.end >= today;
+    return `<div class="item"><div><div class="t">${esc(r.type)} ${statusChip(r)}</div>
+      <div class="m"><span class="num">${periodText(r)}</span>${dt}${r.reason ? ' · ' + esc(r.reason) : ''}</div></div>
+      <div class="acts">${can ? `<button class="btn small danger" data-act="cancel" data-id="${r.id}">취소</button>` : ''}</div></div>`;
+  }).join('');
+  return `${offlineNote()}
+  <section class="panel"><h2>연가 잔여일수</h2><div class="stats">${years}</div>
+  <p class="sub">근무일(주간·야간)만 차감합니다. 신청 중(승인 대기·대기)인 연가도 미리 뺍니다. 2027년 연가는 1월 1일에 새로 부여됩니다.</p></section>
+  <section class="panel"><h2>내 신청</h2><div class="list">${items || '<p class="empty">아직 신청한 휴가가 없습니다. 달력에서 날짜를 눌러 신청하세요.</p>'}</div></section>`;
+}
+
+// 3. 관리
+function renderAdmin() {
+  if (!S.admin) {
+    const has = !!S.settings.adminHash;
+    if (!has && !S.isOwner) return `${offlineNote()}<section class="panel"><h2>관리 화면</h2><p class="sub">아직 관리자 비밀번호가 정해지지 않았습니다. 이 페이지를 만든 사람이 처음 열어 비밀번호를 정해야 합니다.</p></section>`;
+    return `${offlineNote()}<form class="panel" data-form="admin" style="max-width:420px">
+      <h2>${has ? '관리자 비밀번호' : '관리자 비밀번호 정하기'}</h2>
+      <p class="sub">${has ? '승인자만 들어옵니다.' : '처음 한 번만 정합니다. 승인자에게만 알려 주세요.'}</p>
+      <div class="field"><label for="ad-pw">비밀번호</label><input id="ad-pw" type="password" autocomplete="off"></div>
+      ${has ? '' : '<div class="field"><label for="ad-pw2">비밀번호 확인</label><input id="ad-pw2" type="password" autocomplete="off"></div>'}
+      <div><button class="btn primary">${has ? '들어가기' : '정하고 들어가기'}</button></div></form>`;
+  }
+  const joins = S.members.filter(x => x.status !== 'approved');
+  const joinList = joins.map(x => `<div class="item"><div><div class="t">${esc(memberLabel(x))} · ${x.team}조</div></div>
+    <div class="acts"><button class="btn small ok" data-act="m-approve" data-id="${x.id}">승인</button><button class="btn small danger" data-act="m-del" data-id="${x.id}">삭제</button></div></div>`).join('');
+
+  const pend = S.reqs.filter(r => r.status === 'pending').sort((a, b) => a.start.localeCompare(b.start) || a.createdAt - b.createdAt);
+  const reqRow = r => {
+    const e = effective(r);
+    const dt = r.type === '연가' ? ` · 근무일 ${deductTotal(r)}일 차감` : '';
+    return `<div class="item"><div><div class="t">${esc(r.rank)} ${esc(r.name)} · ${r.team}조 · ${esc(r.type)} ${statusChip(r)}</div>
+      <div class="m"><span class="num">${periodText(r)}</span>${dt}${r.reason ? ' · ' + esc(r.reason) : ''}</div></div>
+      <div class="acts">${e.kind === 'pending' ? `<button class="btn small ok" data-act="r-approve" data-id="${r.id}">승인</button>` : ''}<button class="btn small danger" data-act="r-reject" data-id="${r.id}">반려</button></div></div>`;
+  };
+  const holders = pend.filter(r => effective(r).kind === 'pending'), waits = pend.filter(r => effective(r).kind === 'waiting');
+
+  const people = [...S.members].filter(x => x.status === 'approved').sort((a, b) => a.team - b.team || a.name.localeCompare(b.name, 'ko'));
+  const rows = people.map(x => {
+    const b6 = balance(x, '2026'), b7 = balance(x, '2027');
+    return `<tr data-mid="${x.id}"><td>${esc(x.name)}</td>
+      <td><select class="inline" id="pr-${x.id}">${RANKS.concat(RANKS.includes(x.rank) ? [] : [x.rank]).map(r => `<option${r === x.rank ? ' selected' : ''}>${esc(r)}</option>`).join('')}</select></td>
+      <td><select class="inline" id="pt-${x.id}">${[1, 2, 3, 4, 5].map(t => `<option value="${t}"${+x.team === t ? ' selected' : ''}>${t}조</option>`).join('')}</select></td>
+      <td><input class="inline n" id="p6-${x.id}" type="number" min="0" max="60" value="${b6.total}"> <span class="sub num">잔여 ${b6.left}</span></td>
+      <td><input class="inline n" id="p7-${x.id}" type="number" min="0" max="60" value="${b7.total}"> <span class="sub num">잔여 ${b7.left}</span></td>
+      <td><button class="btn small primary" data-act="m-save" data-id="${x.id}">저장</button>
+      <button class="btn small" data-act="m-pin" data-id="${x.id}">PIN 초기화</button>
+      <button class="btn small danger" data-act="m-del" data-id="${x.id}">삭제</button></td></tr>`;
+  }).join('');
+
+  const months = [];
+  for (let n = toN(MIN); n <= toN(MAX); n += 28) { const k = toS(n).slice(0, 7); if (!months.includes(k)) months.push(k); }
+  const rep = reportRows(S.reportMonth);
+  const repTable = rep.length ? `<div class="tbl-wrap"><table><thead><tr>${REPORT_HEAD.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>
+    ${rep.map(r => `<tr>${r.map((c, i) => `<td class="${i === 5 ? 'wrap' : ''} ${i === 4 ? 'num' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+    : '<p class="empty">이 달에 승인된 휴가가 없습니다.</p>';
+
+  return `${offlineNote()}
+  <section class="panel"><h2>가입 승인 <span class="sub num">${joins.length}명 대기</span></h2>
+    <div class="list">${joinList || '<p class="empty">승인을 기다리는 가입이 없습니다.</p>'}</div></section>
+
+  <section class="panel"><h2>신청 승인·반려 <span class="sub num">${holders.length}건</span></h2>
+    <p class="sub">자리를 확정한 신청과 시간외출만 승인할 수 있습니다. 반려하면 그날 대기 1번이 자동으로 올라갑니다.</p>
+    <div class="list">${holders.map(reqRow).join('') || '<p class="empty">처리할 신청이 없습니다.</p>'}</div>
+    ${waits.length ? `<h3>대기 중 <span class="sub num">${waits.length}건</span></h3><div class="list">${waits.map(reqRow).join('')}</div>` : ''}
+  </section>
+
+  <section class="panel"><h2>인원 관리 <span class="sub num">${people.length}명</span></h2>
+    <p class="sub">연가 총일수는 연도별로 입력합니다. 2026년은 남은 연가, 2027년은 새로 부여할 연가입니다.</p>
+    <div class="row"><div class="field" style="flex:0 1 200px"><label for="bulk7">2027년 연가 일괄 입력</label><input id="bulk7" type="number" min="0" max="60" placeholder="예: 21"></div>
+      <button class="btn" data-act="bulk7">전원에게 적용</button></div>
+    ${people.length ? `<div class="tbl-wrap"><table><thead><tr><th>이름</th><th>계급</th><th>조</th><th>2026 연가</th><th>2027 연가</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="empty">승인된 인원이 없습니다.</p>'}
+  </section>
+
+  <section class="panel"><h2>월별 결재표</h2>
+    <div class="row">
+      <div class="field" style="flex:0 1 180px"><label for="rep-month">월</label><select id="rep-month">${months.map(k => `<option value="${k}"${k === S.reportMonth ? ' selected' : ''}>${k.slice(0, 4)}년 ${+k.slice(5)}월</option>`).join('')}</select></div>
+      ${S.dl ? `<button class="btn primary" data-act="xlsx" ${rep.length ? '' : 'disabled'}>엑셀로 받기</button>
+      <button class="btn" data-act="printfile" ${rep.length ? '' : 'disabled'}>인쇄용 파일 받기</button>` : '<p class="sub">이 화면에서는 파일 받기를 쓸 수 없습니다.</p>'}
+    </div>
+    <p class="sub">승인된 건만 날짜순으로 싣습니다. 인쇄용 파일을 열면 바로 인쇄 창이 뜨고, 거기서 PDF로 저장할 수도 있습니다.</p>
+    ${repTable}
+  </section>
+
+  <section class="panel"><h2>근무 기준일</h2>
+    <p class="sub">근무표는 저장하지 않고 이 기준일로 계산합니다. 주간 → 야간 → 휴무 3일, 조 순서 1→2→3→4→5.</p>
+    <div class="row">
+      <div class="field" style="flex:0 1 180px"><label for="st-date">기준일</label><input id="st-date" type="date" value="${esc(S.settings.baseDate)}"></div>
+      <div class="field" style="flex:0 1 140px"><label for="st-team">그날 주간조</label><select id="st-team">${[1, 2, 3, 4, 5].map(t => `<option value="${t}"${+S.settings.baseDayTeam === t ? ' selected' : ''}>${t}조</option>`).join('')}</select></div>
+      <button class="btn primary" data-act="st-save">저장</button>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:0 1 220px"><label for="st-pw">관리자 비밀번호 바꾸기</label><input id="st-pw" type="password" autocomplete="off"></div>
+      <button class="btn" data-act="pw-save">바꾸기</button>
+    </div>
+  </section>`;
+}
+
+// ───────── 결재표 ─────────
+const REPORT_HEAD = ['성명', '계급', '조', '종류', '기간(시간)', '사유', '비고'];
+function reportRows(month) {
+  const a = month + '-01', y = +month.slice(0, 4), mo = +month.slice(5);
+  const b = toS(toN(a) + new Date(Date.UTC(y, mo, 0)).getUTCDate() - 1);
+  return S.reqs.filter(r => r.status === 'approved' && r.start <= b && r.end >= a)
+    .sort((p, q) => p.start.localeCompare(q.start) || p.team - q.team || p.name.localeCompare(q.name, 'ko'))
+    .map(r => {
+      const note = [];
+      if (r.type === '연가') note.push(`근무일 ${deductTotal(r)}일 차감`);
+      if (r.start < a || r.end > b) note.push('월 걸침');
+      return [r.name, r.rank, r.team + '조', r.type, periodText(r), r.reason || '', note.join(', ')];
+    });
+}
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((ok, no) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = ok; s.onerror = no; document.head.appendChild(s);
+  });
+}
+async function saveFile(filename, data) {
+  try { await S.dl.save({ filename, data }); toast(`${filename}을 받았습니다.`); }
+  catch (e) { if (e && e.code !== 'declined') toast('파일을 받지 못했습니다. 잠시 뒤 다시 시도하세요.'); }
+}
+async function exportXlsx() {
+  const mo = S.reportMonth;
+  try { await loadXlsx(); } catch { return toast('엑셀 도구를 불러오지 못했습니다. 인쇄용 파일을 이용하세요.'); }
+  const title = `${mo.slice(0, 4)}년 ${+mo.slice(5)}월 휴가 결재표`;
+  const ws = XLSX.utils.aoa_to_sheet([[title], [], REPORT_HEAD, ...reportRows(mo)]);
+  ws['!cols'] = [10, 8, 6, 10, 30, 28, 20].map(w => ({ wch: w }));
+  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${+mo.slice(5)}월`);
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveFile(`휴가결재표_${mo}.xlsx`, new Blob([buf]));
+}
+function exportPrint() {
+  const mo = S.reportMonth, rows = reportRows(mo);
+  const title = `${mo.slice(0, 4)}년 ${+mo.slice(5)}월 휴가 결재표`;
+  const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${title}</title><style>
+  @page{size:A4;margin:16mm}body{font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;color:#000;font-size:11pt}
+  .h{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px}h1{font-size:18pt;margin:0}
+  .sign{border-collapse:collapse}.sign td{border:1px solid #000;width:22mm;text-align:center;padding:3px}.sign tr:last-child td{height:16mm}
+  table.t{border-collapse:collapse;width:100%}table.t th,table.t td{border:1px solid #000;padding:5px 6px;text-align:center}
+  table.t th{background:#eee}table.t td.l{text-align:left}.foot{margin-top:10px;font-size:9pt;color:#444}
+  </style></head><body><div class="h"><h1>${title}</h1>
+  <table class="sign"><tr><td>담당</td><td>검토</td><td>결재</td></tr><tr><td></td><td></td><td></td></tr></table></div>
+  <table class="t"><thead><tr>${REPORT_HEAD.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>
+  ${rows.map(r => `<tr>${r.map((c, i) => `<td class="${i === 4 || i === 5 ? 'l' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')}
+  </tbody></table><p class="foot">승인된 신청 ${rows.length}건 · 출력일 ${today}</p>
+  <script>window.onload=function(){window.print()}<\/script></body></html>`;
+  saveFile(`휴가결재표_${mo}.html`, html);
+}
+
+// ───────── 신청 창 ─────────
+function openRequest(date) {
+  const m = me();
+  if (!m) return toast('먼저 들어가세요.');
+  if (m.status !== 'approved') return toast('가입 승인 후에 신청할 수 있습니다.');
+  if (S.offline) return toast('공유 저장소에 연결되지 않아 신청할 수 없습니다.');
+  S.R = { type: '연가', start: date, end: date, t1: '09:00', t2: '11:00', reason: '', busy: false, err: '' };
+  const md0 = $('modal'); md0.hidden = false;
+  md0.innerHTML = `<form class="sheet" data-form="req" role="dialog" aria-modal="true" aria-labelledby="rq-title">
+    <div class="sheet-head"><h2 id="rq-title">휴가 신청 · ${m.team}조 ${esc(memberLabel(m))}</h2><button type="button" class="btn small" data-act="close">닫기</button></div>
+    <div class="types" role="group" aria-label="종류">${TYPES.map(t => `<button type="button" data-act="rtype" data-type="${t}">${t}</button>`).join('')}</div>
+    <div class="row" id="rq-seat">
+      <div class="field"><label for="rq-start">시작일</label><input id="rq-start" type="date" min="${MIN}" max="${MAX}" value="${date}"></div>
+      <div class="field"><label for="rq-end">종료일</label><input id="rq-end" type="date" min="${MIN}" max="${MAX}" value="${date}"></div>
+    </div>
+    <div class="row" id="rq-time" hidden>
+      <div class="field"><label for="rq-date">날짜</label><input id="rq-date" type="date" min="${MIN}" max="${MAX}" value="${date}"></div>
+      <div class="field"><label for="rq-t1">시작 시각</label><input id="rq-t1" type="time" value="09:00"></div>
+      <div class="field"><label for="rq-t2">종료 시각</label><input id="rq-t2" type="time" value="11:00"></div>
+    </div>
+    <div class="field"><label for="rq-reason">사유 (선택)</label><input id="rq-reason" maxlength="60" autocomplete="off"></div>
+    <div class="preview" id="rq-preview"></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" id="rq-submit">신청</button></div>
+  </form>`;
+  renderPreview();
+  $('rq-start').focus();
+}
+function readForm() {
+  const R = S.R;
+  if (R.type === '시간외출') { R.start = R.end = $('rq-date').value; R.t1 = $('rq-t1').value; R.t2 = $('rq-t2').value; }
+  else {
+    R.start = $('rq-start').value; R.end = $('rq-end').value;
+    if (R.start && (!R.end || R.end < R.start)) { R.end = R.start; $('rq-end').value = R.start; }
+  }
+  R.reason = $('rq-reason').value.trim();
+}
+// 신청 가능 여부 판단. reqs를 넘기면 그 데이터로 다시 판단한다(제출 직전 재확인).
+function evaluate(R, m, reqs = S.reqs) {
+  const idx = reqs === S.reqs ? S.idx : buildIndex(reqs);
+  const out = { errors: [], notes: [], days: [], deduct: {}, waiting: 0, label: '신청' };
+  if (!R.start || R.start < MIN || R.end > MAX) { out.errors.push('2026년 11월 1일부터 2027년 12월 31일 사이에서 고르세요.'); return out; }
+  if (R.type === '시간외출') {
+    if (!R.t1 || !R.t2 || R.t1 >= R.t2) out.errors.push('종료 시각은 시작 시각보다 늦어야 합니다.');
+    out.notes.push(`${md(R.start)} ${duty(+m.team, R.start) === 'O' ? '휴무' : DUTY[duty(+m.team, R.start)][0]}일입니다. 시간외출은 휴가 자리를 차지하지 않습니다.`);
+    return out;
+  }
+  const team = +m.team;
+  out.days = daysIn(R.start, R.end).map(d => ({ d, du: duty(team, d), q: queue(team, d, idx) }));
+  if (out.days.length > 31) { out.errors.push('한 번에 31일까지 신청할 수 있습니다.'); return out; }
+  const own = reqs.filter(r => r.memberId === m.id && SEAT.has(r.type) && active(r) && r.start <= R.end && r.end >= R.start);
+  if (own.length) out.errors.push(`이미 신청한 날짜와 겹칩니다: ${own.map(periodText).join(', ')}`);
+  const full = out.days.filter(x => x.q.length);
+  if (out.days.length > 1 && full.length) out.errors.push(`마감된 날이 있어 연속휴가를 신청할 수 없습니다: ${full.map(x => md(x.d)).join(', ')}. 날짜를 다시 고르세요.`);
+  if (out.days.length === 1 && full.length) { out.waiting = full[0].q.length; out.label = `대기 ${out.waiting}번으로 신청`; }
+  if (R.type === '연가') {
+    out.deduct = deductOf(team, R.start, R.end);
+    for (const [y, n] of Object.entries(out.deduct)) {
+      const b = balance(m, y, reqs);
+      if (n > b.left) out.errors.push(`${y}년 연가가 모자랍니다. 차감 ${n}일, 잔여 ${b.left}일.`);
+    }
+  }
+  return out;
+}
+function renderPreview() {
+  const R = S.R, m = me(); if (!R || !m) return;
+  document.querySelectorAll('[data-act="rtype"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.type === R.type));
+  $('rq-seat').hidden = R.type === '시간외출'; $('rq-time').hidden = R.type !== '시간외출';
+  const ev = evaluate(R, m);
+  let h = '';
+  if (ev.days.length) {
+    h += `<div class="days">${ev.days.map(x => `<div class="dayp ${x.q.length ? 'full' : ''}"><span class="num">${md(x.d)}</span><span class="duty ${x.du}">${DUTY[x.du][0]}</span><span class="${x.q.length ? 's full' : 's ok'}">${x.q.length ? '마감' : '가능'}</span></div>`).join('')}</div>`;
+    if (R.type === '연가') {
+      const tot = Object.values(ev.deduct).reduce((a, b) => a + b, 0);
+      const wd = ev.days.filter(x => x.du !== 'O').map(x => `${md(x.d)} ${DUTY[x.du][0]}`).join(', ');
+      const bal = Object.keys(ev.deduct).map(y => { const b = balance(m, y); return `${y}년 잔여 ${b.left}일 → ${b.left - ev.deduct[y]}일`; }).join(' · ');
+      h += `<p class="msg">근무일 <b class="num">${tot}</b>일 차감 예정${wd ? ` (${wd})` : ' (휴무일만 포함되어 차감 없음)'}${bal ? `<br><span class="sub">${bal}</span>` : ''}</p>`;
+    } else h += `<p class="msg sub">${R.type}는 잔여일수를 차감하지 않고 기록만 합니다.</p>`;
+  }
+  ev.notes.forEach(n => h += `<p class="msg sub">${n}</p>`);
+  if (ev.errors.length) ev.errors.forEach(e => h += `<p class="msg err">${esc(e)}</p>`);
+  else if (ev.waiting) h += `<p class="msg warn">이날은 마감입니다. 대기 ${ev.waiting}번으로 들어가고, 앞사람이 취소하거나 반려되면 자동으로 올라갑니다.</p>`;
+  else if (R.type !== '시간외출') h += `<p class="msg ok">자리가 비어 있습니다. 신청하는 순간 확정되고 승인을 기다립니다.</p>`;
+  if (R.err) h += `<p class="msg err">${esc(R.err)}</p>`;
+  $('rq-preview').innerHTML = h;
+  const btn = $('rq-submit');
+  btn.textContent = R.busy ? '저장 중…' : ev.label;
+  btn.disabled = R.busy || ev.errors.length > 0;
+}
+function closeModal() { $('modal').hidden = true; $('modal').innerHTML = ''; S.R = null; }
+
+// 같은 조 신청은 짧은 잠금으로 한 줄로 세운다(동시에 눌러도 선착순이 꼬이지 않게)
+async function lockTeam(t) {
+  for (let i = 0; i < 8; i++) {
+    try { const r = await S.db.doc('locks/team' + t).acquire({ holder: TAB_ID, ttlMs: 6000 }); if (r.acquired) return true; }
+    catch { return true; }
+    await sleep(500 + Math.random() * 500);
+  }
+  return false;
+}
+async function submitRequest() {
+  const R = S.R, m = me();
+  readForm(); R.err = '';
+  if (evaluate(R, m).errors.length) return renderPreview();
+  R.busy = true; renderPreview();
+  try {
+    const seat = SEAT.has(R.type);
+    if (seat && !(await lockTeam(+m.team))) throw { msg: '같은 조의 다른 신청을 처리하는 중입니다. 잠시 뒤 다시 누르세요.' };
+    const fresh = seat ? (await S.db.collection('requests').get()).docs.map(d => ({ id: d.id, ...d.data() })) : S.reqs;
+    const ev = evaluate(R, m, fresh);
+    if (ev.errors.length) throw { msg: '방금 다른 신청이 들어와 상황이 바뀌었습니다. ' + ev.errors[0] };
+    const doc = {
+      memberId: m.id, name: m.name, rank: m.rank, team: +m.team, type: R.type,
+      start: R.start, end: R.end, startTime: R.type === '시간외출' ? R.t1 : null, endTime: R.type === '시간외출' ? R.t2 : null,
+      reason: R.reason, status: 'pending', createdAt: Date.now(), deduct: R.type === '연가' ? ev.deduct : {},
+    };
+    await S.db.collection('requests').doc().set(doc);
+    closeModal();
+    toast(!seat ? '시간외출을 신청했습니다. 승인을 기다립니다.' : ev.waiting ? `대기 ${ev.waiting}번으로 신청했습니다.` : '자리를 확정했습니다. 승인을 기다립니다.');
+  } catch (e) {
+    if (!S.R) return;
+    R.busy = false; R.err = e && e.msg ? e.msg : writeErr(e); renderPreview();
+  }
+}
+
+// ───────── 동작 ─────────
+function arm(b, label) {
+  if (b.dataset.armed === '1') return true;
+  const old = b.textContent; b.dataset.armed = '1'; b.textContent = label;
+  setTimeout(() => { b.dataset.armed = ''; b.textContent = old; }, 3000);
+  return false;
+}
+async function guard(fn, ok) {
+  try { await fn(); if (ok) toast(ok); } catch (e) { toast(writeErr(e)); }
+}
+const ACT = {
+  tab: b => { S.tab = b.dataset.tab; render(true); window.scrollTo(0, 0); },
+  logout: () => { S.me = null; S.admin = false; lsSet('leave.me', null); ssSet('leave.admin', null); S.tab = 'cal'; render(true); },
+  month: b => { const [y, m] = S.month.split('-').map(Number); const d = new Date(Date.UTC(y, m - 1 + +b.dataset.d, 1)); S.month = d.toISOString().slice(0, 7); render(true); },
+  team: b => { const t = b.dataset.team; S.teamView = t === 'all' ? 'all' : (me() && +me().team === +t ? 'mine' : t); lsSet('leave.teamView', S.teamView); render(true); },
+  day: b => openRequest(b.dataset.date),
+  close: closeModal,
+  rtype: b => { readForm(); S.R.type = b.dataset.type; if (S.R.type === '시간외출') { $('rq-date').value = S.R.start; } else { $('rq-start').value = S.R.start; $('rq-end').value = S.R.end; } renderPreview(); },
+  cancel: b => { if (!arm(b, '정말 취소')) return; guard(() => S.db.doc('requests/' + b.dataset.id).update({ status: 'cancelled', closedAt: Date.now() }), '취소했습니다.'); },
+  'm-approve': b => guard(() => S.db.doc('members/' + b.dataset.id).update({ status: 'approved' }), '가입을 승인했습니다.'),
+  'm-del': b => { if (!arm(b, '정말 삭제')) return; guard(() => S.db.doc('members/' + b.dataset.id).delete(), '삭제했습니다. 지난 신청 기록은 남습니다.'); },
+  'm-pin': b => { if (!arm(b, '정말 초기화')) return; guard(() => S.db.doc('members/' + b.dataset.id).update({ pinHash: null }), 'PIN을 초기화했습니다. 다음에 들어올 때 새 PIN을 정합니다.'); },
+  'm-save': b => {
+    const id = b.dataset.id, n6 = +$('p6-' + id).value || 0, n7 = +$('p7-' + id).value || 0;
+    guard(() => S.db.doc('members/' + id).update({ rank: $('pr-' + id).value, team: +$('pt-' + id).value, annual: { '2026': n6, '2027': n7 } }), '저장했습니다.');
+  },
+  bulk7: async b => {
+    const v = $('bulk7').value; if (v === '') return toast('일수를 입력하세요.');
+    if (!arm(b, `전원 ${+v}일로 적용`)) return;
+    const ps = S.members.filter(x => x.status === 'approved');
+    await guard(async () => { for (const x of ps) await S.db.doc('members/' + x.id).update({ annual: { '2027': +v } }); }, `${ps.length}명의 2027년 연가를 ${+v}일로 정했습니다.`);
+  },
+  'r-approve': b => guard(() => S.db.doc('requests/' + b.dataset.id).update({ status: 'approved', closedAt: Date.now() }), '승인했습니다.'),
+  'r-reject': b => { if (!arm(b, '정말 반려')) return; guard(() => S.db.doc('requests/' + b.dataset.id).update({ status: 'rejected', closedAt: Date.now() }), '반려했습니다.'); },
+  'st-save': () => {
+    const d = $('st-date').value; if (!d) return toast('기준일을 고르세요.');
+    guard(() => S.db.doc('settings/main').set({ ...S.settings, baseDate: d, baseDayTeam: +$('st-team').value }), '기준일을 저장했습니다.');
+  },
+  'pw-save': async () => {
+    const pw = $('st-pw').value; if (pw.length < 4) return toast('비밀번호는 4자 이상으로 정하세요.');
+    const h = await hash('admin:' + pw);
+    guard(() => S.db.doc('settings/main').set({ ...S.settings, adminHash: h }), '관리자 비밀번호를 바꿨습니다.');
+  },
+  xlsx: exportXlsx,
+  printfile: exportPrint,
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (b && !b.disabled) { e.preventDefault(); ACT[b.dataset.act]?.(b, e); return; }
+  if (e.target.id === 'modal') closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.R) closeModal(); });
+document.addEventListener('input', e => { if (e.target.closest('[data-form="req"]') && S.R) { readForm(); S.R.err = ''; renderPreview(); } });
+document.addEventListener('change', e => {
+  if (e.target.id === 'rep-month') { S.reportMonth = e.target.value; render(true); }
+  else if (e.target.closest('[data-form="req"]') && S.R) { readForm(); renderPreview(); }
+});
+
+document.addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target.dataset.form;
+  if (f === 'req') return submitRequest();
+  if (S.offline) return toast('공유 저장소에 연결되지 않았습니다.');
+  if (f === 'login') {
+    const m = S.members.find(x => x.id === $('lg-member').value), pin = $('lg-pin').value;
+    if (!m) return;
+    if (!/^\d{4}$/.test(pin)) return toast('PIN은 숫자 4자리입니다.');
+    const h = await hash(m.id + ':' + pin);
+    if (!m.pinHash) {
+      try { await S.db.doc('members/' + m.id).update({ pinHash: h }); toast('새 PIN을 정했습니다.'); } catch (err) { return toast(writeErr(err)); }
+    } else if (h !== m.pinHash) return toast('PIN이 맞지 않습니다. 잊었다면 승인자에게 초기화를 요청하세요.');
+    S.me = m.id; lsSet('leave.me', m.id); S.teamView = 'mine'; S.tab = 'cal'; render(true);
+  }
+  if (f === 'join') {
+    const name = $('jn-name').value.trim(), rank = $('jn-rank').value, team = +$('jn-team').value, p1 = $('jn-pin').value, p2 = $('jn-pin2').value;
+    if (!name) return toast('이름을 입력하세요.');
+    if (!/^\d{4}$/.test(p1)) return toast('PIN은 숫자 4자리입니다.');
+    if (p1 !== p2) return toast('PIN 확인이 다릅니다.');
+    if (S.members.some(x => x.name === name && +x.team === team)) return toast(`${team}조에 같은 이름이 이미 있습니다. 들어가기에서 이름을 고르세요.`);
+    try {
+      const ref = S.db.collection('members').doc();
+      await ref.set({ name, rank, team, pinHash: await hash(ref.id + ':' + p1), status: 'pending', annual: {}, createdAt: Date.now() });
+      S.me = ref.id; lsSet('leave.me', ref.id); S.teamView = 'mine'; S.tab = 'cal'; render(true);
+      toast('가입을 신청했습니다. 승인자가 승인하면 휴가를 신청할 수 있습니다.');
+    } catch (err) { toast(writeErr(err)); }
+  }
+  if (f === 'admin') {
+    const pw = $('ad-pw').value;
+    if (!S.settings.adminHash) {
+      if (pw.length < 4) return toast('비밀번호는 4자 이상으로 정하세요.');
+      if (pw !== $('ad-pw2').value) return toast('비밀번호 확인이 다릅니다.');
+      try { await S.db.doc('settings/main').set({ ...S.settings, adminHash: await hash('admin:' + pw) }); } catch (err) { return toast(writeErr(err)); }
+    } else if (await hash('admin:' + pw) !== S.settings.adminHash) return toast('비밀번호가 맞지 않습니다.');
+    S.admin = true; ssSet('leave.admin', '1'); render(true);
+  }
+});
+
+// ───────── 시작 ─────────
+async function init() {
+  const use = n => (window.claude && window.claude.use) ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
+  const [db, user, dl] = await Promise.all([use('db'), use('user'), use('downloads')]);
+  S.db = db; S.dl = dl;
+  try { S.isOwner = user ? !!(await user.isOwner()) : false; } catch {}
+  if (!db) { S.offline = true; S.ready.m = S.ready.r = true; S.members = []; render(true); return; }
+  const fail = e => { console.error(e); S.offline = true; render(); };
+  db.collection('members').onSnapshot(s => { S.members = s.docs.map(d => ({ id: d.id, ...d.data() })); S.ready.m = true; render(); }, fail);
+  db.collection('requests').onSnapshot(s => { S.reqs = s.docs.map(d => ({ id: d.id, ...d.data() })); S.idx = buildIndex(S.reqs); S.ready.r = true; render(); }, fail);
+  db.doc('settings/main').onSnapshot(s => { if (s.exists) S.settings = { ...S.settings, ...s.data() }; S.idx = buildIndex(S.reqs); render(); }, fail);
+}
+render(true);
+init();
+</script>
