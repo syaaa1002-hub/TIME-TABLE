@@ -6,12 +6,26 @@
 | --- | --- |
 | `leave-board.html` | 페이지 본체. claude.ai 아티팩트와 GitHub Pages가 같은 파일을 씁니다. |
 | `index.html` | GitHub Pages 입구. `leave-board.html`과 `config.js`를 불러옵니다. |
-| `config.js` | Supabase 주소와 anon 키 |
+| `config.js` | Supabase 주소와 anon 키 (GitHub Pages용) |
+| `api/config.js` | Vercel 환경변수의 Supabase 주소와 anon 키를 페이지에 내려주는 함수 |
+| `vercel.json` | Vercel 설정 |
 | `supabase-setup.sql` | Supabase 표와 잠금 함수 만들기 |
 
 페이지는 열린 곳에 따라 저장소를 고릅니다. claude.ai에서 열면 claude.ai 공유 저장소를, GitHub 주소에서 열면 Supabase를 씁니다. 두 저장소의 데이터는 서로 이어지지 않습니다.
 
-## GitHub 주소로 여는 방법
+## Vercel로 여는 방법 (권장)
+
+1. **Supabase 프로젝트 만들기**: https://supabase.com 에서 새 프로젝트를 만듭니다. 지역은 Northeast Asia (Seoul), 무료 플랜이면 됩니다.
+2. **표 만들기**: SQL Editor에 `supabase-setup.sql` 내용을 붙여 넣고 **Run**을 누릅니다.
+3. **Vercel에 가져오기**: https://vercel.com 에 GitHub 계정으로 로그인 → **Add New… → Project** → `TIME-TABLE` 저장소 **Import**. Framework Preset은 **Other**, 빌드 설정은 비워 둡니다.
+4. **환경변수 넣기**: 같은 화면의 Environment Variables에 두 개를 넣고 **Deploy**를 누릅니다.
+   - `SUPABASE_URL`: Supabase → Project Settings → API의 Project URL
+   - `SUPABASE_ANON_KEY`: 같은 화면의 anon public 키 (`service_role` 키는 넣지 마세요)
+5. **관리자 비밀번호 정하기**: 배포 주소(`https://….vercel.app`)가 열리면 바로 "관리" 탭에서 관리자 비밀번호를 정하세요.
+
+이후 `main`에 푸시할 때마다 Vercel이 자동으로 다시 배포합니다. 환경변수를 나중에 넣거나 바꿨다면 Vercel의 Deployments에서 **Redeploy**를 한 번 누르세요.
+
+## GitHub Pages로 여는 방법
 
 1. **Supabase 프로젝트 만들기**: https://supabase.com 에서 새 프로젝트를 만듭니다. 지역은 Northeast Asia (Seoul), 무료 플랜이면 됩니다.
 2. **표 만들기**: SQL Editor에 `supabase-setup.sql` 내용을 붙여 넣고 **Run**을 누릅니다.

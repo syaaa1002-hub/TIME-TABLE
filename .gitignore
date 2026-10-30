@@ -4,3 +4,6 @@ product-recommender/
 
 # 로컬 도구 설정
 .claude/
+
+# Vercel
+.vercel/

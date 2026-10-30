@@ -338,7 +338,7 @@ function offlineNote() {
   if (!S.offline) return '';
   const why = window.claude ? 'claude.ai에 로그인한 상태로 링크를 다시 열어 주세요.'
     : window.LEAVE_CONFIG && window.LEAVE_CONFIG.supabaseUrl ? 'Supabase 주소·키와 표(supabase-setup.sql)를 확인하세요.'
-    : 'config.js에 Supabase 주소와 키를 넣어야 합니다.';
+    : 'Vercel 환경변수(SUPABASE_URL, SUPABASE_ANON_KEY)나 config.js에 Supabase 주소와 키를 넣어야 합니다.';
   return `<div class="notice err">공유 저장소에 연결하지 못했습니다. ${why} 근무표는 볼 수 있지만 신청과 승인은 저장되지 않습니다.</div>`;
 }
 
@@ -905,7 +905,11 @@ async function init() {
   const use = n => inClaude ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
   let [db, user, dl] = await Promise.all([use('db'), use('user'), use('downloads')]);
   try { S.isOwner = user ? !!(await user.isOwner()) : false; } catch {}
-  const cfg = window.LEAVE_CONFIG || {};
+  let cfg = window.LEAVE_CONFIG || {};
+  // Vercel에서는 환경변수(SUPABASE_URL, SUPABASE_ANON_KEY)를 api/config가 내려준다
+  if (!inClaude && !cfg.supabaseUrl) {
+    try { const r = await fetch('api/config', { cache: 'no-store' }); if (r.ok) cfg = window.LEAVE_CONFIG = await r.json(); } catch {}
+  }
   if (!inClaude && cfg.supabaseUrl && cfg.supabaseAnonKey) {
     try {
       await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js');
