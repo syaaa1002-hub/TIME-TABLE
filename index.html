@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>조별 휴가 신청판</title>
+</head>
+<body>
+<p style="font-family:system-ui,sans-serif;padding:16px">불러오는 중…</p>
+<script>
+// GitHub Pages 입구: claude.ai와 같은 leave-board.html을 불러와 config.js(Supabase 설정)와 함께 연다.
+fetch('leave-board.html', { cache: 'no-cache' })
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+  .then(page => {
+    document.open();
+    document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+      + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+      + '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>'
+      + '<script src="config.js"><\/script></head><body>' + page + '</body></html>');
+    document.close();
+  })
+  .catch(() => { document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:16px">페이지를 불러오지 못했습니다. 새로고침해 주세요.</p>'; });
+</script>
+</body>
+</html>

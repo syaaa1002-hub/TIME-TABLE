@@ -335,7 +335,11 @@ function renderTop() {
 }
 
 function offlineNote() {
-  return S.offline ? `<div class="notice err">공유 저장소에 연결하지 못했습니다. claude.ai에 로그인한 상태로 링크를 다시 열어 주세요. 근무표는 볼 수 있지만 신청과 승인은 저장되지 않습니다.</div>` : '';
+  if (!S.offline) return '';
+  const why = window.claude ? 'claude.ai에 로그인한 상태로 링크를 다시 열어 주세요.'
+    : window.LEAVE_CONFIG && window.LEAVE_CONFIG.supabaseUrl ? 'Supabase 주소·키와 표(supabase-setup.sql)를 확인하세요.'
+    : 'config.js에 Supabase 주소와 키를 넣어야 합니다.';
+  return `<div class="notice err">공유 저장소에 연결하지 못했습니다. ${why} 근무표는 볼 수 있지만 신청과 승인은 저장되지 않습니다.</div>`;
 }
 
 // 0. 입장
@@ -828,12 +832,89 @@ document.addEventListener('submit', async e => {
   }
 });
 
+// ───────── GitHub Pages용 저장소: Supabase의 leave_docs 표 하나를 같은 모양(컬렉션/문서)으로 쓴다 ─────────
+const deepMerge = (a, b) => {
+  const o = { ...(a || {}) };
+  for (const [k, v] of Object.entries(b)) o[k] = v && typeof v === 'object' && !Array.isArray(v) && o[k] && typeof o[k] === 'object' ? deepMerge(o[k], v) : v;
+  return o;
+};
+const newId = () => (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Math.random().toString(36).slice(2) + Date.now().toString(36));
+function supabaseDb(sb) {
+  const T = 'leave_docs', listeners = [];
+  const refresh = col => listeners.forEach(l => (!col || l.col === col) && l.run());
+  sb.channel('leave').on('postgres_changes', { event: '*', schema: 'public', table: T },
+    p => refresh((p.new && p.new.col) || (p.old && p.old.col))).subscribe();
+  setInterval(() => refresh(), 30000);
+  const check = ({ error }) => { if (error) throw error; };
+  const listen = (col, load, next, err) => {
+    let ok = false;
+    const l = { col, run: async () => { try { next(await load()); ok = true; } catch (e) { if (!ok && err) err(e); } } };
+    listeners.push(l); l.run();
+    return () => listeners.splice(listeners.indexOf(l), 1);
+  };
+  const docRef = (col, id) => {
+    const ref = {
+      id,
+      async get() {
+        const r = await sb.from(T).select('data').eq('col', col).eq('id', id).maybeSingle(); check(r);
+        return { id, exists: !!r.data, data: () => r.data ? r.data.data : undefined };
+      },
+      async set(data) { check(await sb.from(T).upsert({ col, id, data })); refresh(col); },
+      async update(data) {
+        const cur = await ref.get(); if (!cur.exists) throw { code: 'invalid_argument' };
+        check(await sb.from(T).update({ data: deepMerge(cur.data(), data) }).eq('col', col).eq('id', id)); refresh(col);
+      },
+      async delete() { check(await sb.from(T).delete().eq('col', col).eq('id', id)); refresh(col); },
+      async acquire({ holder, ttlMs }) {
+        const r = await sb.rpc('leave_acquire', { p_key: col + '/' + id, p_holder: holder, p_ttl_ms: ttlMs || 30000 }); check(r);
+        return { acquired: !!r.data };
+      },
+      onSnapshot: (next, err) => listen(col, ref.get, next, err),
+    };
+    return ref;
+  };
+  const colRef = col => {
+    const get = async () => {
+      const r = await sb.from(T).select('id,data').eq('col', col); check(r);
+      return { docs: r.data.map(x => ({ id: x.id, exists: true, data: () => x.data })) };
+    };
+    return { get, doc: id => docRef(col, id || newId()), onSnapshot: (next, err) => listen(col, get, next, err) };
+  };
+  return {
+    collection: colRef,
+    doc: p => { const i = p.lastIndexOf('/'); return docRef(p.slice(0, i), p.slice(i + 1)); },
+  };
+}
+function loadScript(src) {
+  return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+}
+// claude.ai 밖에서는 파일을 브라우저가 바로 내려받는다
+const browserDownloads = {
+  async save({ filename, data }) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type: 'text/html;charset=utf-8' }));
+    a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    return { status: 'saved' };
+  },
+};
+
 // ───────── 시작 ─────────
 async function init() {
-  const use = n => (window.claude && window.claude.use) ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
-  const [db, user, dl] = await Promise.all([use('db'), use('user'), use('downloads')]);
-  S.db = db; S.dl = dl;
+  const inClaude = !!(window.claude && window.claude.use);
+  const use = n => inClaude ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
+  let [db, user, dl] = await Promise.all([use('db'), use('user'), use('downloads')]);
   try { S.isOwner = user ? !!(await user.isOwner()) : false; } catch {}
+  const cfg = window.LEAVE_CONFIG || {};
+  if (!inClaude && cfg.supabaseUrl && cfg.supabaseAnonKey) {
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js');
+      db = supabaseDb(window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey));
+      dl = browserDownloads;
+      S.isOwner = true; // 관리자 비밀번호가 없을 때 처음 연 사람이 정한다
+    } catch (e) { console.error(e); }
+  }
+  S.db = db; S.dl = dl;
   if (!db) { S.offline = true; S.ready.m = S.ready.r = true; S.members = []; render(true); return; }
   const fail = e => { console.error(e); S.offline = true; render(); };
   db.collection('members').onSnapshot(s => { S.members = s.docs.map(d => ({ id: d.id, ...d.data() })); S.ready.m = true; render(); }, fail);
